@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "warehouse-ia"
+version = "0.1.0"
+description = ""
+authors = ["Igor Martins <igormartins0301@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pyspark = "^3.5.2"
+requests = "^2.32.3"
+boto3 = "^1.35.20"
+python-dotenv = "^1.0.1"
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.29.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
