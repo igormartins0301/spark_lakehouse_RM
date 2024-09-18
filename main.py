@@ -2,15 +2,15 @@
 #INGESTION_EXAMPLE
 from libs.api_extractor import DataExtractor
 
-extractor = DataExtractor(initial_id=3, final_id=4, bucket_name='raw', folder_name='RickMorty', url='https://rickandmortyapi.com/api/character/')
+extractor = DataExtractor(initial_id=7, final_id=9, bucket_name='raw', folder_name='RickMorty', url='https://rickandmortyapi.com/api/character/')
 extractor.run()
 
+
 #%%
-# READ_EXAMPLE
-from libs.ingestor import SparkReadWrite
+from libs.ingestor import Ingestor
 
-spark = SparkReadWrite(catalog= 'raw', schema= 'RickMorty')
+ing = Ingestor(catalog_load='raw', catalog_write='bronze', schema='RickMorty')
 
-df = spark.read_files(data_format='json')
+df = ing.load('json')
 
-df.show()
+ing.save(df, 'characters','delta',mode ='overwrite')

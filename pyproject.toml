@@ -7,10 +7,11 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-pyspark = "^3.5.2"
+pyspark = "3.5.2"
 requests = "^2.32.3"
 boto3 = "^1.35.20"
 python-dotenv = "^1.0.1"
+delta-spark = "3.2.0"
 
 
 [tool.poetry.group.dev.dependencies]

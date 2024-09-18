@@ -1,7 +1,6 @@
 #%%
 import requests
 import json
-from pyspark.sql import SparkSession
 import boto3
 from datetime import datetime
 from dotenv import load_dotenv
@@ -74,8 +73,3 @@ class DataExtractor:
         except Exception as e:
             print(f"Erro: {e}")
 
-# # Uso da classe
-# if __name__ == "__main__":
-#     extractor = RickAndMortyDataExtractor(initial_id=3, final_id=4, bucket_name='raw', folder_name='RickMorty', url='https://rickandmortyapi.com/api/character/')
-#     extractor.run()
-# # %%
