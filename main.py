@@ -1,5 +1,5 @@
 #%%
-#INGESTION_EXAMPLE
+#API-EXTRACT_EXAMPLE
 from libs.api_extractor import DataExtractor
 
 extractor = DataExtractor(initial_id=1, 
@@ -10,13 +10,13 @@ extractor = DataExtractor(initial_id=1,
                           url='https://rickandmortyapi.com/api/character/')
 extractor.run()
 
-
 #%%
+#READ DELTA TABLE EXAMPLE
 from libs.ingestor import Ingestor
 
-ing = Ingestor(catalog_load='bronze', catalog_write='bronze', schema='RickMorty', tablename='characters')
+ing = Ingestor(schema='RickMorty', tablename='characters')
+df = ing.load('delta', catalog='bronze')
+df.show()
+df.count()
+df.columns
 
-df = ing.load('parquet')
-
-#%%
-df.show(5)

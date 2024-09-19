@@ -1,4 +1,3 @@
-#%%
 import requests
 import json
 import boto3
@@ -36,6 +35,22 @@ class DataExtractor:
         else:
             raise Exception(f"Falha ao obter dados: {response.status_code}")
 
+    def add_updated_at(self, data):
+        """Adiciona a coluna 'updated_at' com o timestamp atual a cada dicionário na lista."""
+        current_timestamp = datetime.now().isoformat()  # Formato ISO para o timestamp
+        
+        # Verifica se 'data' é uma lista
+        if isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):  # Verifica se cada item é um dicionário
+                    item['updated_at'] = current_timestamp  # Adiciona a coluna 'updated_at'
+                else:
+                    raise ValueError("Um dos itens na lista não é um dicionário.")
+        else:
+            raise ValueError("Os dados não estão no formato esperado (lista).")
+        
+        return data
+
     def generate_object_key(self):
         """Gera um nome de arquivo baseado na data atual e um número sequencial."""
         today = datetime.now().strftime('%Y-%m-%d')
@@ -70,7 +85,7 @@ class DataExtractor:
         """Executa todo o processo de extração e armazenamento."""
         try:
             dados = self.fetch_data()
-            self.save_data_to_minio(dados) 
+            dados_with_timestamp = self.add_updated_at(dados)  # Adiciona a coluna 'updated_at'
+            self.save_data_to_minio(dados_with_timestamp) 
         except Exception as e:
             print(f"Erro: {e}")
-
