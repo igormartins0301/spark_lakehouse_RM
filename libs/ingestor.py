@@ -2,15 +2,17 @@ import os
 from dotenv import load_dotenv
 from os.path import abspath
 from pyspark.sql import SparkSession
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, functions as F
 from delta import *
+from datetime import datetime
 
 load_dotenv()
 
 class Ingestor:
-    def __init__(self, catalog_load: str, catalog_write: str, schema: str):
+    def __init__(self, catalog_load: str, catalog_write: str, schema: str, tablename:str):
         self.catalog_load = catalog_load
         self.catalog_write = catalog_write
+        self.tablename = tablename
         self.schema = schema
 
         self.builder = SparkSession.builder \
@@ -33,16 +35,20 @@ class Ingestor:
         df = self.spark.read.format(data_format) \
             .option("header", "True") \
             .option("inferSchema", "True") \
-            .load(f"s3a://{self.catalog_load}/{self.schema}/*.{data_format}")
+            .load(f"s3a://{self.catalog_load}/{self.schema}/{self.tablename}/*.{data_format}")
         return df
         
-    def save(self, df: DataFrame, tablename: str, data_format:str, mode: str = "overwrite",):
+    def save(self, df: DataFrame, data_format:str, mode: str = "overwrite",):
+        current_timestamp = datetime.now()
+        df = df.withColumn("last_updated", F.lit(current_timestamp))
+        
         (df.write
          .format(data_format)
          .mode(mode)
-         .save(f"s3a://{self.catalog_write}/{self.schema}/{tablename}"))
+         .save(f"s3a://{self.catalog_write}/{self.schema}/{self.tablename}"))
         return True
     
     def execute_query(self, query):
         self.spark.sql(query)
         return True
+    
