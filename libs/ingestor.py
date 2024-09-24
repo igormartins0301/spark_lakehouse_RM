@@ -99,6 +99,24 @@ class IngestorCDC(Ingestor):
 
     def save(self, df: DataFrame, data_format: str, catalog: str, mode: str = "overwrite"):
         return super().save(df, data_format, catalog, mode)
+    
+    def load_streaming(self, data_format: str, catalog: str, infered_schema) -> DataFrame:
+        """Carrega os dados como um DataFrame de streaming."""
+        return (self.spark
+                    .readStream
+                    .schema(infered_schema)
+                    .format(data_format)
+                    .option("header", "true")
+                    .option("maxFilesPerTrigger", 1)
+                    .load(f"s3a://{catalog}/{self.schema}/{self.tablename}"))
+    
+    def save_streaming(self, df: DataFrame):
+        (df.writeStream
+            .option("checkpointLocation", f"s3a://checkpoints/{self.schema}/{self.tablename}_checkpoint/")
+            .foreachBatch(lambda df, batchID: self.upsert(df))
+            .trigger(availableNow=True)
+            .start())
+
 
     def execute_query(self, query):
         return super().execute_query(query)
