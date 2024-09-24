@@ -25,11 +25,15 @@ class DataExtractor:
             aws_secret_access_key=os.getenv('MINIO_SECRET_KEY')
         )
 
-    def fetch_data(self):
+    def fetch_data(self, full_load=False):
         """Obtém dados da API Rick and Morty."""
-        url = f'{self.url}{self.initial_id},{self.final_id}'
-        response = requests.get(url)
-        
+        id_range = ",".join(str(i) for i in range(self.initial_id, self.final_id + 1))
+        url = f'{self.url}{id_range}'
+
+        if full_load:
+            url = f'{self.url}'
+
+        response = requests.get(url)        
         if response.status_code == 200:
             return response.json()
         else:
@@ -81,10 +85,10 @@ class DataExtractor:
         
         print(f"Dados JSON carregados com sucesso no MinIO como '{object_key}'.")
 
-    def run(self):
+    def run(self, full_load):
         """Executa todo o processo de extração e armazenamento."""
         try:
-            dados = self.fetch_data()
+            dados = self.fetch_data(full_load=full_load)
             dados_with_timestamp = self.add_updated_at(dados)  # Adiciona a coluna 'updated_at'
             self.save_data_to_minio(dados_with_timestamp) 
         except Exception as e:
