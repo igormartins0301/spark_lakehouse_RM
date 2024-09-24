@@ -6,6 +6,7 @@ from pyspark.sql import DataFrame, functions as F
 from delta import *
 from datetime import datetime
 from delta.tables import DeltaTable
+from pyspark.sql.utils import AnalysisException
 
 load_dotenv()
 
@@ -43,8 +44,6 @@ class Ingestor:
                 .option("inferSchema", "True") \
                 .load(f"s3a://{catalog}/{self.schema}/{self.tablename}/*.{data_format}")
             return df
-        
-
         
     def save(self, df: DataFrame, data_format:str, catalog:str,  mode: str = "overwrite"):
         (df.write
