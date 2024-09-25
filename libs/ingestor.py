@@ -7,6 +7,7 @@ from delta import *
 from datetime import datetime
 from delta.tables import DeltaTable
 from pyspark.sql.utils import AnalysisException
+from typing import Optional, List, Dict, Any
 
 load_dotenv()
 
@@ -119,3 +120,73 @@ class IngestorCDC(Ingestor):
 
     def execute_query(self, query):
         return super().execute_query(query)
+    
+
+class SilverIngestor(Ingestor):
+    def __init__(self, schema: str, tablename: str):
+        super().__init__(schema, tablename)
+        self.bronze_schema: Optional[str] = None
+        self.bronze_table: Optional[str] = None
+    
+    def set_bronze_source(self, bronze_schema: str, bronze_table: str) -> None:
+        """Define a tabela fonte na camada Bronze."""
+        self.bronze_schema = bronze_schema
+        self.bronze_table = bronze_table
+    
+    def read_sql_file(self, sql_file_path: str) -> str:
+        """Lê um arquivo SQL e retorna o conteúdo como uma string."""
+        with open(sql_file_path, 'r') as file:
+            sql_query = file.read()
+        return sql_query
+    
+    def process_bronze_to_silver(self, sql_query: str) -> DataFrame:
+        """
+        Processa dados da Bronze para Silver usando uma consulta SQL.
+        
+        :param sql_query: Consulta SQL para transformar os dados
+        :return: DataFrame com os dados processados
+        """
+        if not self.bronze_schema or not self.bronze_table:
+            raise ValueError("Bronze source not set. Call set_bronze_source() first.")
+
+        # Carrega a tabela da camada Bronze
+        bronze_df = self.load("delta", "bronze")
+        bronze_df.createOrReplaceTempView(f"{self.bronze_schema}_{self.bronze_table}")
+
+        # Executa a consulta SQL nas tabelas bronze
+        result_df = self.spark.sql(sql_query)
+        return result_df
+    
+    def ingest_to_silver(self, sql_file_path: str, merge_condition: Optional[str] = None) -> None:
+        """
+        Ingere os dados processados da camada Bronze para a Silver usando um arquivo SQL.
+        
+        :param sql_file_path: Caminho do arquivo SQL
+        :param merge_condition: Condição para merge (se aplicável)
+        """
+        # Passo 1: Ler o arquivo SQL
+        sql_query = self.read_sql_file(sql_file_path)
+
+        # Extrair o nome do arquivo SQL sem a extensão .sql
+        table_name_from_file = os.path.basename(sql_file_path).replace('.sql', '')
+
+        # Passo 2: Processar a transformação do Bronze para o Silver
+        transformed_df = self.process_bronze_to_silver(sql_query)
+
+        # Passo 3: Salvar os dados na Silver
+        silver_table_path = f"s3a://silver/{self.schema}/{table_name_from_file}"
+
+        # Passo 3: Salvar os dados na Silver
+        if merge_condition:
+            silver_table = DeltaTable.forPath(self.spark, silver_table_path)
+            
+            (silver_table.alias("t")
+             .merge(transformed_df.alias("s"), merge_condition)
+             .whenMatchedUpdateAll()
+             .whenNotMatchedInsertAll()
+             .execute())
+        else:
+            (transformed_df.write
+               .format('delta')
+               .mode('overwrite')
+               .save(silver_table_path))

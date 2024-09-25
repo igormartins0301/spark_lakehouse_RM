@@ -3,5 +3,8 @@
 from libs.ingestor import Ingestor
 
 ing = Ingestor(schema='rickmorty', tablename='episode')
-df = ing.load('delta', catalog='bronze')
-df.show(truncate=False)
+df = ing.load('delta', catalog='silver')
+#df.show(truncate=False)
+
+#%%
+df.show(n=1000)
