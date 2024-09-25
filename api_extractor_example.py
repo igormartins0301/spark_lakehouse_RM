@@ -2,10 +2,9 @@
 #API-EXTRACT_EXAMPLE
 from libs.api_extractor import DataExtractor
 
-extractor = DataExtractor(initial_id=15, 
+extractor = DataExtractor(initial_id=1, 
                           final_id=30, 
                           bucket_name='raw', 
                           folder_name='rickmorty', 
-                          tablename='episodes',
-                          url='https://rickandmortyapi.com/api/location/')
+                          tablename='episode',)
 extractor.run(full_load=False)

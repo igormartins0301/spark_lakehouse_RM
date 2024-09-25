@@ -7,8 +7,8 @@ sys.path.append(parent_directory)
 
 from libs.ingestor import Ingestor, IngestorCDC
 
-full_load = False
-tablename = 'episodes'
+full_load = True
+tablename = 'location'
 schema='rickmorty'
 id_field = 'id'
 timestamp_field = 'updated_at'

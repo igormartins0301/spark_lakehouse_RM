@@ -6,14 +6,14 @@ from dotenv import load_dotenv
 import os
 
 class DataExtractor:
-    def __init__(self, initial_id, final_id, bucket_name, folder_name, url, tablename):
+    def __init__(self, initial_id, final_id, bucket_name, folder_name,tablename):
         self.initial_id = initial_id
         self.final_id = final_id
         self.bucket_name = bucket_name
         self.folder_name = folder_name
         self.tablename = tablename
         self.s3_client = self.configure_s3_client()
-        self.url = url
+        self.url = f'https://rickandmortyapi.com/api/{self.tablename}/'
         load_dotenv()
 
     def configure_s3_client(self):
@@ -27,13 +27,14 @@ class DataExtractor:
 
     def fetch_data(self, full_load=False):
         """Obtém dados da API Rick and Morty."""
-        id_range = ",".join(str(i) for i in range(self.initial_id, self.final_id + 1))
-        url = f'{self.url}{id_range}'
-
         if full_load:
-            url = f'{self.url}'
-
-        response = requests.get(url)        
+            url = self.url
+        else:
+            id_range = ",".join(str(i) for i in range(self.initial_id, self.final_id + 1))
+            url = f'{self.url}{id_range}'
+        
+        print(url)
+        response = requests.get(url)
         if response.status_code == 200:
             return response.json()
         else:
@@ -92,4 +93,5 @@ class DataExtractor:
             dados_with_timestamp = self.add_updated_at(dados)  # Adiciona a coluna 'updated_at'
             self.save_data_to_minio(dados_with_timestamp) 
         except Exception as e:
+            print(self.url)
             print(f"Erro: {e}")
