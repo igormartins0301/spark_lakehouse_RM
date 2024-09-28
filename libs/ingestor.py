@@ -12,8 +12,9 @@ from typing import Optional, List, Dict, Any
 load_dotenv()
 
 class Ingestor:
-    def __init__(self, schema: str, tablename:str):
-        self.tablename = tablename
+    def __init__(self, schema: str, tablename_load:str, tablename_save:str):
+        self.tablename_load = tablename_load
+        self.tablename_save = tablename_save
         self.schema = schema
 
         self.builder = SparkSession.builder \
@@ -37,20 +38,20 @@ class Ingestor:
             df = self.spark.read.format("delta") \
                 .option("header", "True") \
                 .option("inferSchema", "True") \
-                .load(f"s3a://{catalog}/{self.schema}/{self.tablename}")
+                .load(f"s3a://{catalog}/{self.schema}/{self.tablename_load}")
             return df
         else:
             df = self.spark.read.format(data_format) \
                 .option("header", "True") \
                 .option("inferSchema", "True") \
-                .load(f"s3a://{catalog}/{self.schema}/{self.tablename}/*.{data_format}")
+                .load(f"s3a://{catalog}/{self.schema}/{self.tablename_load}/*.{data_format}")
             return df
         
     def save(self, df: DataFrame, data_format:str, catalog:str,  mode: str = "overwrite"):
         (df.write
          .format(data_format)
          .mode(mode)
-         .save(f"s3a://{catalog}/{self.schema}/{self.tablename}"))
+         .save(f"s3a://{catalog}/{self.schema}/{self.tablename_save}"))
         return True
     
     def execute_query(self, query):
@@ -60,27 +61,27 @@ class Ingestor:
 
 
 class IngestorCDC(Ingestor):
-    def __init__(self, schema: str, tablename: str, id_field: str, timestamp_field: str):
-        super().__init__(schema, tablename)
+    def __init__(self, schema: str, tablename_load: str,tablename_save: str, id_field: str, timestamp_field: str):
+        super().__init__(schema, tablename_load,tablename_save)
         self.id_field = id_field
         self.timestamp_field = timestamp_field
         self.set_deltatable()
 
     def set_deltatable(self, catalog='bronze'):
         """Configura a tabela Delta para operações de upsert."""
-        tablename = f"{self.schema}.{self.tablename}"
-        self.deltatable = DeltaTable.forPath(self.spark, f"s3a://{catalog}/{self.schema}/{self.tablename}")
+        tablename = f"{self.schema}.{self.tablename_load}"
+        self.deltatable = DeltaTable.forPath(self.spark, f"s3a://{catalog}/{self.schema}/{self.tablename_load}")
 
     def upsert(self, df: DataFrame):
         """Realiza o upsert na tabela Delta."""
-        df.createOrReplaceGlobalTempView(f"view_{self.tablename}")
+        df.createOrReplaceGlobalTempView(f"view_{self.tablename_load}")
 
         query = f'''
                 SELECT *
                 FROM (
                     SELECT *,
                         ROW_NUMBER() OVER (PARTITION BY {self.id_field} ORDER BY {self.timestamp_field} DESC) AS rn
-                    FROM global_temp.view_{self.tablename}
+                    FROM global_temp.view_{self.tablename_save}
                 ) AS subquery
                 WHERE rn = 1
             '''
@@ -108,11 +109,11 @@ class IngestorCDC(Ingestor):
                     .format(data_format)
                     .option("header", "true")
                     .option("maxFilesPerTrigger", 1)
-                    .load(f"s3a://{catalog}/{self.schema}/{self.tablename}"))
+                    .load(f"s3a://{catalog}/{self.schema}/{self.tablename_load}"))
     
     def save_streaming(self, df: DataFrame):
         (df.writeStream
-            .option("checkpointLocation", f"s3a://checkpoints/{self.schema}/{self.tablename}_checkpoint/")
+            .option("checkpointLocation", f"s3a://checkpoints/{self.schema}/{self.tablename_save}_checkpoint/")
             .foreachBatch(lambda df, batchID: self.upsert(df))
             .trigger(availableNow=True)
             .start())
@@ -123,15 +124,11 @@ class IngestorCDC(Ingestor):
     
 
 class SilverIngestor(Ingestor):
-    def __init__(self, schema: str, tablename: str):
-        super().__init__(schema, tablename)
+    def __init__(self, schema: str, tablename_load: str,tablename_save: str):
+        super().__init__(schema, tablename_load, tablename_save)
         self.bronze_schema: Optional[str] = None
         self.bronze_table: Optional[str] = None
     
-    def set_bronze_source(self, bronze_schema: str, bronze_table: str) -> None:
-        """Define a tabela fonte na camada Bronze."""
-        self.bronze_schema = bronze_schema
-        self.bronze_table = bronze_table
     
     def read_sql_file(self, sql_file_path: str) -> str:
         """Lê um arquivo SQL e retorna o conteúdo como uma string."""
@@ -146,14 +143,11 @@ class SilverIngestor(Ingestor):
         :param sql_query: Consulta SQL para transformar os dados
         :return: DataFrame com os dados processados
         """
-        if not self.bronze_schema or not self.bronze_table:
-            raise ValueError("Bronze source not set. Call set_bronze_source() first.")
+        bronze_df = self.load("delta", catalog="bronze")
+        bronze_df.show(5)
+        bronze_df.printSchema()
 
-        # Carrega a tabela da camada Bronze
-        bronze_df = self.load("delta", "bronze")
-        bronze_df.createOrReplaceTempView(f"{self.bronze_schema}_{self.bronze_table}")
-
-        # Executa a consulta SQL nas tabelas bronze
+        bronze_df.createOrReplaceTempView(f"{self.schema}_{self.tablename_load}")
         result_df = self.spark.sql(sql_query)
         return result_df
     

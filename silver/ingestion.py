@@ -8,11 +8,13 @@ sys.path.append(parent_directory)
 from libs.ingestor import Ingestor, IngestorCDC, SilverIngestor
 
 schema = 'rickmorty'
-tablename = 'episode'
+tablename_load = 'episode'
+tablename_save = 'episode_character'
 merge_condition = 't.idEpisodio = s.idEpisodio' #Silver incremental merge
 
 
-ing = SilverIngestor(schema=schema, tablename=tablename)
-ing.set_bronze_source(schema, tablename)
-ing.ingest_to_silver('episode.sql')
+ing = SilverIngestor(schema=schema, tablename_load=tablename_load, tablename_save=tablename_save)
+# ing.set_bronze_source(bronze_schema='rickmorty', bronze_table='episode')
+#%%
+ing.ingest_to_silver('episode_character.sql')
 

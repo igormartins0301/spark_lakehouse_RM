@@ -2,9 +2,10 @@
 #READ DELTA TABLE EXAMPLE
 from libs.ingestor import Ingestor
 
-ing = Ingestor(schema='rickmorty', tablename='episode')
+ing = Ingestor(schema='rickmorty', tablename_load='episode_character', tablename_save='episode_character')
 df = ing.load('delta', catalog='silver')
-#df.show(truncate=False)
+
+df.show(truncate=False)
 
 #%%
-df.show(n=1000)
+df.select('idEpisodio', 'urlPersonagem').show(n=100, truncate=False)
