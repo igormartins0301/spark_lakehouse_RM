@@ -199,11 +199,13 @@ class SilverIngestor(Ingestor):
         )
 
         transformed_df = self.process_bronze_to_silver(sql_query)
+        #transformed_df.groupBy('idLocal', 'idResidente').count().filter('count > 1').show()
 
         silver_table_path = (
             f's3a://silver/{self.schema}/{table_name_from_file}'
         )
         if merge_condition:
+            print('Incremental ingestion...')
             silver_table = DeltaTable.forPath(self.spark, silver_table_path)
 
             (
@@ -214,11 +216,14 @@ class SilverIngestor(Ingestor):
                 .execute()
             )
         else:
-            (
-                transformed_df.write.format('delta')
-                .mode('overwrite')
-                .save(silver_table_path)
-            )
+            print('Full load...')
+            try:
+                transformed_df.write.format('delta') \
+                                    .mode('overwrite') \
+                                    .option("overwriteSchema", "true") \
+                                    .save(silver_table_path)
+            except Exception as e:
+                print(f"Erro ao gravar no MinIO: {e}")
 
 
 class GoldIngestor(Ingestor):

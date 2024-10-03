@@ -1,0 +1,26 @@
+[
+    {
+        "full_load": false,
+        "tablename_load": "episode",
+        "tablename_save": "episode",
+        "schema": "rickmorty",
+        "id_field": "id",
+        "timestamp_field": "updated_at"
+    },
+    {
+        "full_load": false,
+        "tablename_load": "character",
+        "tablename_save": "character",
+        "schema": "rickmorty",
+        "id_field": "id",
+        "timestamp_field": "updated_at"
+    },
+    {
+        "full_load": false,
+        "tablename_load": "location",
+        "tablename_save": "location",
+        "schema": "rickmorty",
+        "id_field": "id",
+        "timestamp_field": "updated_at"
+    }
+]

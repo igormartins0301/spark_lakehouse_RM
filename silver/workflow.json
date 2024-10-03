@@ -1,0 +1,32 @@
+[
+    {
+        "schema": "rickmorty",
+        "tablename_load": "location",
+        "tablename_save": "location",
+        "merge_condition": "t.idLocal = s.idLocal"
+    },
+    {
+        "schema": "rickmorty",
+        "tablename_load": "character",
+        "tablename_save": "character",
+        "merge_condition": "t.idPersonagem = s.idPersonagem "
+    },
+    {
+        "schema": "rickmorty",
+        "tablename_load": "episode",
+        "tablename_save": "episode",
+        "merge_condition": "t.idEpisodio = s.idEpisodio"
+    },
+    {
+        "schema": "rickmorty",
+        "tablename_load": "location",
+        "tablename_save": "location_residents",
+        "merge_condition": false
+    },
+    {
+        "schema": "rickmorty",
+        "tablename_load": "episode",
+        "tablename_save": "episode_character",
+        "merge_condition": false
+    }
+]

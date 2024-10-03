@@ -3,8 +3,8 @@
 from libs.api_extractor import DataExtractor
 
 extractor = DataExtractor(
-    initial_id=1,
-    final_id=2,
+    initial_id=20,
+    final_id=60,
     bucket_name='raw',
     folder_name='rickmorty',
     tablename='episode',
