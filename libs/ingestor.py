@@ -6,6 +6,7 @@ from delta.tables import DeltaTable
 from dotenv import load_dotenv
 from pyspark.errors import AnalysisException
 from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import functions as F
 
 load_dotenv()
 
@@ -313,6 +314,7 @@ class GoldIngestor(Ingestor):
         gold_table_path = f's3a://gold/{self.schema}/{self.tablename_save}'
 
         if merge_condition:
+            print('Incremental ingestion...')
             gold_table = DeltaTable.forPath(self.spark, gold_table_path)
             (
                 gold_table.alias('g')
@@ -322,6 +324,7 @@ class GoldIngestor(Ingestor):
                 .execute()
             )
         else:
+            print('Full load...')
             (
                 filtered_df.write.format('delta')
                 .mode('overwrite')

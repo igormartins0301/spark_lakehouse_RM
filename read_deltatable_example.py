@@ -4,9 +4,9 @@ from libs.ingestor import Ingestor
 
 ing = Ingestor(
     schema='rickmorty',
-    tablename_load='episode_character',
+    tablename_load='count_residents_by_local',
     tablename_save='episode',
 )
-df = ing.load('delta', catalog='silver')
+df = ing.load('delta', catalog='gold')
 
 df.show(n=1000)

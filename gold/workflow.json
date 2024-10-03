@@ -1,0 +1,9 @@
+[
+    {
+        "tablename_load": "location_residents",
+        "tablename_save": "count_residents_by_local",
+        "schema": "rickmorty",
+        "date_field": "dtAtualizacao",
+        "merge_condition": "g.idLocal = f.idLocal"
+    }
+]
