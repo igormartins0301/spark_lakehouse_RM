@@ -228,15 +228,10 @@ class SilverIngestor(Ingestor):
 
 
 class GoldIngestor(Ingestor):
-    def __init__(
-        self,
-        schema: str,
-        tablename_load: str,
-        tablename_save: str,
-        date_field: str,
-    ):
-        super().__init__(schema, tablename_load, tablename_save)
+    def __init__(self, schema: str, tablename_load: str, tablename_save: str, date_field: str):
+        super().__init__(schema, tablename_load, tablename_save)  # Chama o construtor da classe Ingestor
         self.date_field = date_field
+        self.table = f"{self.schema}.{self.tablename_save}"
 
     def read_sql_file(self, sql_file_path: str) -> str:
         """Lê um arquivo SQL e retorna o conteúdo como uma string."""
@@ -244,31 +239,20 @@ class GoldIngestor(Ingestor):
             sql_query = file.read()
         return sql_query
 
+    def load_silver(self) -> DataFrame:
+        """Carrega os dados da camada Silver e cria uma view temporária."""
+        silver_df = self.load('delta', catalog='silver')  # Usa o método da classe base
+        silver_df.createOrReplaceTempView(f'{self.schema}_{self.tablename_load}')
+        return silver_df
+
     def process_silver_to_gold(self, sql_query: str) -> DataFrame:
-        """
-        Processa dados da Silver para Gold usando uma consulta SQL.
-
-        :param sql_query: Consulta SQL para transformar os dados
-        :return: DataFrame com os dados processados
-        """
-        silver_df = self.load('delta', catalog='silver')
-        silver_df.createOrReplaceTempView(
-            f'{self.schema}_{self.tablename_load}'
-        )
-
-        result_df = self.spark.sql(sql_query)
+        """Executa a query SQL para processar dados da Silver para Gold."""
+        self.load_silver()  # Carrega os dados da Silver
+        result_df = self.spark.sql(sql_query)  # Executa a query
         return result_df
 
-    def filter_incremental(
-        self, df: DataFrame, last_ingest_date: Optional[str] = None
-    ) -> DataFrame:
-        """
-        Filtra os dados para incluir apenas incrementos baseados em uma coluna de data/timestamp.
-
-        :param df: DataFrame com os dados a serem filtrados
-        :param last_ingest_date: Data da última ingestão
-        :return: DataFrame filtrado com dados incrementais
-        """
+    def filter_incremental(self, df: DataFrame, last_ingest_date: Optional[str] = None) -> DataFrame:
+        """Filtra os dados para incluir apenas os novos registros (incremental) baseados em uma coluna de data."""
         if last_ingest_date:
             filtered_df = df.filter(F.col(self.date_field) > last_ingest_date)
         else:
@@ -276,57 +260,22 @@ class GoldIngestor(Ingestor):
         return filtered_df
 
     def get_last_ingest_date(self, catalog='gold') -> Optional[str]:
-        """
-        Obtém a última data de ingestão na camada Gold com base no campo de data/timestamp.
-
-        :return: Última data de ingestão no formato de string (yyyy-MM-dd) ou None se não houver dados.
-        """
+        """Obtém a última data de ingestão na camada Gold com base no campo de data."""
         try:
-            gold_df = self.spark.read.format('delta').load(
-                f's3a://{catalog}/{self.schema}/{self.tablename_save}'
-            )
-
-            last_date = gold_df.agg(
-                F.max(self.date_field).alias('last_ingest_date')
-            ).collect()[0]['last_ingest_date']
+            gold_df = self.load('delta', catalog=catalog)  # Usa o método da classe base
+            last_date = gold_df.agg(F.max(self.date_field).alias('last_ingest_date')).collect()[0]['last_ingest_date']
             return last_date.strftime('%Y-%m-%d') if last_date else None
-        except AnalysisException:
+        except Exception:
             return None
 
-    def ingest_to_gold(
-        self, sql_file_path: str, merge_condition: Optional[str] = None
-    ):
-        """
-        Ingere dados processados da camada Silver para a Gold de forma incremental.
+    def save(self, df: DataFrame, new_table: bool = False):
+        """Salva os dados na camada Gold, fazendo append ou criando uma nova tabela."""
+        super().save(df, 'delta', catalog='gold', mode='overwrite' if new_table else 'append')  # Usa o método da classe base
 
-        :param sql_file_path: Caminho do arquivo SQL
-        :param merge_condition: Condição para o merge incremental
-        :param last_ingest_date: Data da última ingestão para fazer o filtro incremental
-        """
+    def ingest_to_gold(self, sql_file_path: str, new_table: bool = False):
+        """Ingere dados processados da camada Silver para a Gold de forma incremental ou completa."""
         last_ingest_date = self.get_last_ingest_date()
-
         sql_query = self.read_sql_file(sql_file_path)
-
-        transformed_df = self.process_silver_to_gold(sql_query)
-
-        filtered_df = self.filter_incremental(transformed_df, last_ingest_date)
-
-        gold_table_path = f's3a://gold/{self.schema}/{self.tablename_save}'
-
-        if merge_condition:
-            print('Incremental ingestion...')
-            gold_table = DeltaTable.forPath(self.spark, gold_table_path)
-            (
-                gold_table.alias('g')
-                .merge(filtered_df.alias('f'), merge_condition)
-                .whenMatchedUpdateAll()
-                .whenNotMatchedInsertAll()
-                .execute()
-            )
-        else:
-            print('Full load...')
-            (
-                filtered_df.write.format('delta')
-                .mode('overwrite')
-                .save(gold_table_path)
-            )
+        transformed_df = self.process_silver_to_gold(sql_query)  # Processa os dados da Silver para Gold
+        filtered_df = self.filter_incremental(transformed_df, last_ingest_date)  # Filtra os dados incrementais
+        self.save(filtered_df, new_table=new_table)  # Salva os dados na camada Gold

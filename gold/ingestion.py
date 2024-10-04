@@ -19,7 +19,7 @@ for config in configurations:
     tablename_save = config['tablename_save']
     schema = config['schema']
     date_field = config['date_field']
-    merge_condition = config['merge_condition']
+    new_table = config['new_table']
 
     gold_ingestor = GoldIngestor(
         schema=schema,
@@ -29,5 +29,5 @@ for config in configurations:
     )
 
 
-    gold_ingestor.ingest_to_gold(sql_file_path=f'{tablename_save}.sql', merge_condition=merge_condition)
+    gold_ingestor.ingest_to_gold(sql_file_path=f'{tablename_save}.sql', new_table=new_table)
 print('Atualizações finalizadas')
