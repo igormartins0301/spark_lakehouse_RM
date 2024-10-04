@@ -251,31 +251,31 @@ class GoldIngestor(Ingestor):
         result_df = self.spark.sql(sql_query)  # Executa a query
         return result_df
 
-    def filter_incremental(self, df: DataFrame, last_ingest_date: Optional[str] = None) -> DataFrame:
-        """Filtra os dados para incluir apenas os novos registros (incremental) baseados em uma coluna de data."""
-        if last_ingest_date:
-            filtered_df = df.filter(F.col(self.date_field) > last_ingest_date)
-        else:
-            filtered_df = df
-        return filtered_df
+    def delete_today_data(self, date: str) -> None:
+        """Remove os dados de hoje da tabela Gold."""
+        # Carrega a tabela Gold
+        gold_df = (
+            self.spark.read.format('delta')
+            .option('header', 'True')
+            .option('inferSchema', 'True')
+            .load(f's3a://gold/{self.schema}/{self.tablename_save}')
+        )
+        
+        count_to_delete = gold_df.filter(gold_df[self.date_field] == date).count()
 
-    def get_last_ingest_date(self, catalog='gold') -> Optional[str]:
-        """Obtém a última data de ingestão na camada Gold com base no campo de data."""
-        try:
-            gold_df = self.load('delta', catalog=catalog)  # Usa o método da classe base
-            last_date = gold_df.agg(F.max(self.date_field).alias('last_ingest_date')).collect()[0]['last_ingest_date']
-            return last_date.strftime('%Y-%m-%d') if last_date else None
-        except Exception:
-            return None
+        filtered_df = gold_df.filter(gold_df[self.date_field] != date)
 
+        filtered_df.write.format('delta').mode('overwrite').save(f's3a://gold/{self.schema}/{self.tablename_save}')
+        return count_to_delete
+        
     def save(self, df: DataFrame, new_table: bool = False):
         """Salva os dados na camada Gold, fazendo append ou criando uma nova tabela."""
-        super().save(df, 'delta', catalog='gold', mode='overwrite' if new_table else 'append')  # Usa o método da classe base
+        super().save(df, 'delta', catalog='gold', mode='overwrite' if new_table else 'append')
 
-    def ingest_to_gold(self, sql_file_path: str, new_table: bool = False):
+    def ingest_to_gold(self, sql_file_path: str, new_table: bool = False, date: str = None):
         """Ingere dados processados da camada Silver para a Gold de forma incremental ou completa."""
-        last_ingest_date = self.get_last_ingest_date()
+
         sql_query = self.read_sql_file(sql_file_path)
-        transformed_df = self.process_silver_to_gold(sql_query)  # Processa os dados da Silver para Gold
-        filtered_df = self.filter_incremental(transformed_df, last_ingest_date)  # Filtra os dados incrementais
-        self.save(filtered_df, new_table=new_table)  # Salva os dados na camada Gold
+        self.delete_today_data(date=date)
+        transformed_df = self.process_silver_to_gold(sql_query)
+        self.save(transformed_df, new_table=new_table)  

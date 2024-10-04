@@ -4,13 +4,15 @@
         "tablename_save": "count_episodes_by_year",
         "schema": "rickmorty",
         "date_field": "dtAtualizacao",
-        "new_table": false
+        "new_table": false,
+        "date": "2024-10-04"
     },
     {
         "tablename_load": "location_residents",
         "tablename_save": "count_residents_by_local",
         "schema": "rickmorty",
         "date_field": "dtAtualizacao",
-        "new_table": false
+        "new_table": false,
+        "date": "2024-10-04"
     }
 ]

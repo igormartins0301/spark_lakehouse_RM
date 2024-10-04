@@ -20,6 +20,7 @@ for config in configurations:
     schema = config['schema']
     date_field = config['date_field']
     new_table = config['new_table']
+    date = config['date']
 
     gold_ingestor = GoldIngestor(
         schema=schema,
@@ -29,5 +30,5 @@ for config in configurations:
     )
 
 
-    gold_ingestor.ingest_to_gold(sql_file_path=f'{tablename_save}.sql', new_table=new_table)
+    gold_ingestor.ingest_to_gold(sql_file_path=f'{tablename_save}.sql', new_table=new_table, date=date)
 print('Atualizações finalizadas')
